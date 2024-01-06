@@ -4,7 +4,7 @@
 #include <ctime>
 #include <cstdio>
 
-const indexT N = 1 << 10;
+const indexT N = 1 << 25;
 const T Fs = 64;
 
 double difftime(timespec &b, timespec &a) {

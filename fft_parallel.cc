@@ -15,18 +15,18 @@ void directParallelFFT(NComplex *F, NComplex *x, indexT N, int inv)
             x[j] = tempor;
         }
     }
-    NComplex *omTable = new NComplex[N / 2];
-    for (indexT m = 1; m < N; m <<= 1) {
+    for (int k = 0; k < K; ++ k) {
+        indexT m = 1ull << k;
         #pragma omp parallel for 
-        for (indexT i = 0; i < m; ++ i) {
-            omTable[i] = expJ(inv * (T)i * PI / m);
-        }
-        #pragma omp parallel for
         for (indexT t = 0; t < N; ++ t) {
             indexT b = m << 1;
             indexT i = t & (b - 1);     // t mod 2m
             if (i < m) {  
-                NComplex v = x[t + m] * omTable[i];
+
+                T phase = (T)inv * i * PI / m;
+                T &R = x[t + m].re;
+                T &I = x[t + m].im;
+                NComplex v {R * cos(phase) - I * sin(phase), R * sin(phase) + I * cos(phase)};
                 F[t] =     x[t] + v;
                 F[t + m] = x[t] - v;
             }
@@ -41,5 +41,4 @@ void directParallelFFT(NComplex *F, NComplex *x, indexT N, int inv)
             F[i] = x[i];
         }
     }
-    delete[] omTable;
 }

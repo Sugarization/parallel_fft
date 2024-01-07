@@ -6,9 +6,34 @@
 NComplex::NComplex(): re(.0), im(.0) {}
 NComplex::NComplex(T r, T i): re(r), im(i) {}
 
-NComplex NComplex::operator + (const NComplex& x) const { return {re + x.re, im + x.im}; }
-NComplex NComplex::operator - (const NComplex& x) const { return {re - x.re, im - x.im}; }
-NComplex NComplex::operator * (const NComplex& x) const { return {re * x.re - im * x.im, re * x.im + im * x.re}; }
+NComplex NComplex::operator + (const NComplex& x) const {
+    __m128d a, b;
+    a = _mm_load_pd(&re);
+    b = _mm_load_pd(&x.re);
+    a = _mm_add_pd(a, b);
+    return *(NComplex*)&a;
+}
+NComplex NComplex::operator - (const NComplex& x) const {
+    __m128d a, b;
+    a = _mm_load_pd(&re);
+    b = _mm_load_pd(&x.re);
+    a = _mm_sub_pd(a, b);
+    return *(NComplex*)&a;
+}
+NComplex NComplex::operator * (const NComplex& x) const {
+    __m128d s, o, sr, si, oswap, zero;
+    s = _mm_load_pd(&re);
+    o = _mm_load_pd(&x.re);
+    sr = _mm_shuffle_pd(s, s, 0);                   // self: real, real
+    si = _mm_shuffle_pd(s, s, 3);                   // self: imag, imag
+    oswap = _mm_shuffle_pd(o, o, 1);                // other: imag, real
+    zero = _mm_set1_pd(0.0);
+    oswap = _mm_addsub_pd(zero, oswap); // other: -imag, real
+    o = _mm_mul_pd(o, sr);
+    oswap = _mm_mul_pd(oswap, si);
+    o = _mm_add_pd(o, oswap);
+    return *(NComplex*)&o;
+}
 NComplex NComplex::operator * (T k) const { return {re * k, im * k}; }
 NComplex NComplex::operator / (const NComplex& x) const { T nsq = normSq(); return {re / nsq, -im / nsq}; }
 T NComplex::normSq() const { return re * re + im * im; }
@@ -61,7 +86,7 @@ void naiveDFT(NComplex *F, NComplex *x, indexT N, int inv)
     }
 }
 
-void iterativeFFT(NComplex *x, indexT N, int inv)
+void bitReverseSwap(NComplex *x, indexT N)
 {
     int K = MSB(N);
     for (indexT i = 0; i < N; i ++) {
@@ -72,20 +97,30 @@ void iterativeFFT(NComplex *x, indexT N, int inv)
             x[j] = tempor;
         }
     }
-    for (indexT m = 1; m < N; m <<= 1) {
-        NComplex w1 = expJ(inv * PI / m);
+}
 
-        for (indexT s = 0; s < N; s += 2 * m) {
+void butterfly(NComplex *x, indexT N, indexT m, int inv)
+{
+    NComplex w1 = expJ(inv * PI / m);
+
+    for (indexT s = 0; s < N; s += 2 * m) {
+        
+        NComplex w = {1, 0};
+        for (indexT i = 0; i < m; ++ i) {
+            NComplex u = x[s + i];
+            NComplex v = x[s + m + i] * w;
             
-            NComplex w = {1, 0};
-            for (indexT i = 0; i < m; ++ i) {
-                NComplex u = x[s + i];
-                NComplex v = x[s + m + i] * w;
-                
-                x[s + i] =     u + v;
-                x[s + i + m] = u - v;
-                w = w * w1;
-            }
+            x[s + i] =     u + v;
+            x[s + i + m] = u - v;
+            w = w * w1;
         }
+    }
+}
+
+void iterativeFFT(NComplex *x, indexT N, int inv)
+{
+    bitReverseSwap(x, N);
+    for (indexT m = 1; m < N; m <<= 1) {
+        butterfly(x, N, m, inv);
     }
 }

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <immintrin.h>
 
 typedef double T;
 typedef uint64_t indexT;

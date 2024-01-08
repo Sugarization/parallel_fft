@@ -1,16 +1,5 @@
 #include "timer.h"
 
-Timer::Timer(const char *src = "")
-: name(new char[strlen(src) + 2]) 
-{
-    strcpy(name, src);
-}
-
-Timer::~Timer() 
-{
-    delete[] name;
-}
-
 void Timer::tick()
 {
     clock_gettime(CLOCK_MONOTONIC, &t0);
@@ -21,10 +10,10 @@ double Timer::difftime() {
     return diff / 1e9;
 }
 
-void Timer::tock(bool verbose)
+void Timer::tock(const char *name)
 {
     clock_gettime(CLOCK_MONOTONIC, &t1);
-    if (verbose) {
+    if (name) {
         printf("Procedure %s elapsed %.7f s.\n", name, difftime());
     }
 }

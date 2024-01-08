@@ -1,23 +1,23 @@
 CC = g++
-OBJ = fft_base.o fft_para.o timer.o
-.PHONY: all debug
+EXEC = fft
+FFT_OBJ = fft_parallel.o fft_base.o transpose.o
+TEST_OBJ = timer.o tests.o
+.PHONY: all clean
 
-all: timer fft
-	$(CC) main.cc -fopenmp $(OBJ) -o fft
+all: $(FFT_OBJ) $(TEST_OBJ) main.cc
+	$(CC) $^ -O3 -fopenmp -std=c++17 -mfma  -o $(EXEC)
 
-timer:
-	$(CC) timer.cc -c -o timer.o
+%.o: %.cc 
+	$(CC) -c -O3 -std=c++17 $^ -o $@
 
-fft: fft_base fft_parallel
+fft_base.o:
+	$(CC) -c fft_base.cc -std=c++17 -O3 -mfma -o fft_base.o
 
-fft_parallel: 
-	$(CC) -c fft_parallel.cc -DNDEBUG -fopenmp -std=c++17 -g -mfma -march=native -O3 -o fft_base.o
+fft_parallel.o:
+	$(CC) -c fft_parallel.cc -std=c++17 -O3 -mfma -fopenmp -march=native -o fft_parallel.o
 
-fft_base:
-	$(CC) -c fft_base.cc -std=c++17 -g -O3 -mfma -o fft_para.o
-
-check: timer fft 
-	$(CC) main.cc -DFFT_CHECK $(OBJ) -o fft
+transpose.o:
+	$(CC) -c transpose.cc -std=c++17 -O3 -mfma -fopenmp -o transpose.o
 
 clean:
-	rm *.o fft
+	rm -f *.o $(EXEC)

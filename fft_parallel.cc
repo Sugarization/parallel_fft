@@ -3,7 +3,68 @@
 #include <cstdio>
 #endif
 
-void directParallelFFT(NComplex *F, NComplex *x, indexT N, int inv)
+void parallelBF1(NComplex *F, NComplex *x, indexT N)
+{
+    #pragma omp parallel for
+    for (indexT t = 0; t < (N >> 1); ++ t) {
+        indexT t0 = t << 1, t1 = (t << 1) | 1;
+        F[t0] = x[t0] + x[t1];
+        F[t1] = x[t0] - x[t1];
+    }
+}
+
+void parallelBF2(NComplex *F, NComplex *x, indexT N, int inv)
+{
+    if (inv == -1) {
+        #pragma omp parallel for
+        for (indexT t = 0; t < (N >> 2); ++ t) {
+            indexT t0 = (t << 2) | 0;
+            indexT t1 = (t << 2) | 1;
+            indexT t2 = (t << 2) | 2;
+            indexT t3 = (t << 2) | 3;
+            F[t0] = x[t0] + x[t2];
+            F[t1] = x[t1] - x[t3].j();
+            F[t2] = x[t0] - x[t2];
+            F[t3] = x[t1] + x[t3].j();
+        }
+    } else {
+        #pragma omp parallel for
+        for (indexT t = 0; t < (N >> 2); ++ t) {
+            indexT t0 = (t << 2) | 0;
+            indexT t1 = (t << 2) | 1;
+            indexT t2 = (t << 2) | 2;
+            indexT t3 = (t << 2) | 3;
+            F[t0] = x[t0] + x[t2];
+            F[t1] = x[t1] + x[t3].j();
+            F[t2] = x[t0] - x[t2];
+            F[t3] = x[t1] - x[t3].j();
+        }
+    }
+}
+
+void parallelButterfly(NComplex *F, NComplex *x, indexT N, indexT k, int inv)
+{
+    if (k == 0) {
+        parallelBF1(F, x, N);
+        return;
+    } else if (k == 1) {
+        parallelBF2(F, x, N, inv);
+        return;
+    }
+    indexT m = 1ull << k;
+    #pragma omp parallel for 
+    for (indexT r = 0; r < N / 2; r ++) {
+        indexT t = ((r >> k) << (k + 1)) | r & (m - 1);
+        indexT i = t & ((m << 1) - 1);     // t mod 2m
+        if (i < m) { 
+            NComplex v = x[t + m] * expJ((T)inv * i * PI / m);
+            F[t] =     x[t] + v;
+            F[t + m] = x[t] - v;
+        }
+    }
+}
+
+void parallelBitReversePermute(NComplex *x, indexT N)
 {
     int K = MSB(N);
     #pragma omp parallel for 
@@ -15,49 +76,17 @@ void directParallelFFT(NComplex *F, NComplex *x, indexT N, int inv)
             x[j] = tempor;
         }
     }
+}
+
+void directParallelFFT(NComplex *F, NComplex *x, indexT N, int inv)
+{
+    parallelBitReversePermute(x, N);
+
+    int K = MSB(N);
+
     for (int k = 0; k < K; ++ k) {
-        indexT m = 1ull << k;
-        if (0) {
-            #pragma omp parallel for 
-            for (indexT t = 0; t < N; t += 4) {
-                if (t & m) continue;        
-                  
-                indexT i = t & (m - 1);
-                
-                T c0 = cos((inv * (int64_t)i) * PI / m);
-                T c1 = cos((inv * (int64_t)(i + 1)) * PI / m);
-                T c2 = cos((inv * (int64_t)(i + 2)) * PI / m);
-                T c3 = cos((inv * (int64_t)(i + 3)) * PI / m);
-                T s0 = sin((inv * (int64_t)i) * PI / m);
-                T s1 = sin((inv * (int64_t)(i + 1)) * PI / m);
-                T s2 = sin((inv * (int64_t)(i + 2)) * PI / m);
-                T s3 = sin((inv * (int64_t)(i + 3)) * PI / m);
-                
-                NComplex v0 (x[t + m + 0].re * c0 - x[t + m + 0].im * s0, x[t + m + 0].re * s0 + x[t + m + 0].im * c0);
-                NComplex v1 (x[t + m + 1].re * c1 - x[t + m + 1].im * s1, x[t + m + 1].re * s1 + x[t + m + 1].im * c1);
-                NComplex v2 (x[t + m + 2].re * c2 - x[t + m + 2].im * s2, x[t + m + 2].re * s2 + x[t + m + 2].im * c2);
-                NComplex v3 (x[t + m + 3].re * c3 - x[t + m + 3].im * s3, x[t + m + 3].re * s3 + x[t + m + 3].im * c3);
-                F[t + 0] = x[t + 0] + v0;
-                F[t + 1] = x[t + 1] + v1;
-                F[t + 2] = x[t + 2] + v2;
-                F[t + 3] = x[t + 3] + v3;
-                F[t + m + 0] = x[t + 0] - v0;
-                F[t + m + 1] = x[t + 1] - v1;
-                F[t + m + 2] = x[t + 2] - v2;
-                F[t + m + 3] = x[t + 3] - v3;
-            }
-        } else {
-            #pragma omp parallel for 
-            for (indexT r = 0; r < N / 2; r ++) {
-                indexT t = ((r >> k) << (k + 1)) | r & (m - 1);
-                indexT i = t & ((m << 1) - 1);     // t mod 2m
-                if (i < m) { 
-                    NComplex v = x[t + m] * expJ((T)inv * i * PI / m);
-                    F[t] =     x[t] + v;
-                    F[t + m] = x[t] - v;
-                }
-            }
-        }
+        
+        parallelButterfly(F, x, N, k, inv);
         
         NComplex *tmp = x;
         x = F;
@@ -69,4 +98,57 @@ void directParallelFFT(NComplex *F, NComplex *x, indexT N, int inv)
             F[i] = x[i];
         }
     }
+}
+
+indexT bit2Reverse(indexT x_in, int K)
+{
+    return 0;
+}
+
+void embeddingParallelFFT(NComplex *F, NComplex *x, indexT N, int inv)
+{
+    int K = MSB(N);
+    int K1 = K / 2;
+    int K2 = K - K1;
+    indexT N1 = (1lu << K1), N2 = (1lu << K2);
+
+    #pragma omp parallel for 
+    for (indexT j = 0; j < N2; ++ j) {
+        iterativeColumnFFT(x, j, N1, N2, inv);
+        for (indexT i = 0; i < N1; ++ i) {
+            x[P2RC(i, j, K2)] = x[P2RC(i, j, K2)] * expJ(inv * 2.0 * PI * (i * j) / (T)N);  // twiddle factor
+        }
+    }
+
+    #pragma omp parallel for 
+    for (indexT i = 0; i < N1; ++ i) {
+        iterativeRowFFT(x, i, N1, N2, inv);
+    }
+    parallelTranspose(F, x, N1, N2);
+}
+
+void embeddingParallelColumnCopyFFT(NComplex *F, NComplex *x, indexT N, int inv)
+{
+    int K = MSB(N);
+    int K1 = K / 2;
+    int K2 = K - K1;
+    indexT N1 = (1lu << K1), N2 = (1lu << K2);
+
+    #pragma omp parallel for 
+    for (indexT j = 0; j < N2; ++ j) {
+        for (indexT i = 0; i < N1; ++ i) {
+            F[P2RC(j, i, K1)] = x[P2RC(i, j, K2)];
+        }
+        iterativeRowFFT(F, j, N2, N1, inv);
+        for (indexT i = 0; i < N1; ++ i) {
+            F[P2RC(j, i, K1)] = F[P2RC(j, i, K1)] * expJ(inv * 2.0 * PI * (i * j) / (T)N);  // twiddle factor
+        }
+    }
+    parallelTranspose(x, F, N2, N1);
+
+    #pragma omp parallel for 
+    for (indexT i = 0; i < N1; ++ i) {
+        iterativeRowFFT(x, i, N1, N2, inv);
+    }
+    parallelTranspose(F, x, N1, N2);
 }

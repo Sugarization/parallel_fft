@@ -9,12 +9,9 @@
 class Timer
 {
     timespec t0, t1;
-    char *name;
 public:
-    Timer(const char *);
-    ~Timer();
     void tick();
-    void tock(bool verbose = true);
+    void tock(const char* name = nullptr);
     double difftime();
 };
 

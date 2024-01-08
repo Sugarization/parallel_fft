@@ -134,7 +134,7 @@ void embeddingParallelColumnCopyFFT(NComplex *F, NComplex *x, indexT N, int inv)
     int K2 = K - K1;
     indexT N1 = (1lu << K1), N2 = (1lu << K2);
 
-    #pragma omp parallel for 
+    #pragma omp parallel for schedule(dynamic)
     for (indexT j = 0; j < N2; ++ j) {
         for (indexT i = 0; i < N1; ++ i) {
             F[P2RC(j, i, K1)] = x[P2RC(i, j, K2)];
@@ -146,7 +146,7 @@ void embeddingParallelColumnCopyFFT(NComplex *F, NComplex *x, indexT N, int inv)
     }
     parallelTranspose(x, F, N2, N1);
 
-    #pragma omp parallel for 
+    #pragma omp parallel for schedule(dynamic)
     for (indexT i = 0; i < N1; ++ i) {
         iterativeRowFFT(x, i, N1, N2, inv);
     }

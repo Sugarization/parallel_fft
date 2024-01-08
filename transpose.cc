@@ -29,7 +29,7 @@ void parallelTranspose(NComplex *y, NComplex *x, indexT N1, indexT N2)
     }
 
     int K1 = MSB(N1), K2 = MSB(N2);
-    #pragma omp parallel for 
+    #pragma omp parallel for schedule(dynamic)
     for (indexT i = 0; i < N1; i += BS) {
         for (indexT j = 0; j < N2; j += BS) {
             transposeBlock(&y[P2RC(j, i, K1)], &x[P2RC(i, j, K2)], K1, K2);

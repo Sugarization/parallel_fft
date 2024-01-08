@@ -7,6 +7,7 @@ int main(int argc, char **argv)
         sscanf(argv[1], "%d", &N);
     }
     
-    sanityCheck(FFT_Type::cooley, FFT_Type::embed, N, 1);
+    // sanityCheck(FFT_Type::cooley, FFT_Type::embed, N, 1);
+    Speedtest(FFT_Type::embed, N, 3, 24);
     return 0;
 }

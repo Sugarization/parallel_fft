@@ -11,9 +11,12 @@
 
 enum class FFT_Type{naive, iter, cooley, embed};
 
-void fft_test(NComplex *F, NComplex *x, indexT N, FFT_Type type, int nThreads, int inv = -1);
+double fft_test(NComplex *F, NComplex *x, indexT N, FFT_Type type, int nThreads, int inv = -1);
 void sanityCheck(FFT_Type t1, FFT_Type t2, indexT N, int inv);
+void Speedtest(FFT_Type type, indexT N, int rep, int nThreads);
+
 void NMMSE(NComplex *y, NComplex *x, indexT N, double &max, double &mean);
+
 void copyComplex(NComplex *y, NComplex *x, indexT N);
 void printArray(NComplex *x, indexT N);
 

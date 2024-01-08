@@ -1,5 +1,24 @@
 #include "tests.h"
 
+const char *name(FFT_Type type)
+{
+    switch (type)
+    {
+    case FFT_Type::iter:
+        return "Iterative Cooley-Tucky";
+        
+    case FFT_Type::cooley:
+        return "Embarrasingly Parallel Cooley-Tucky";
+
+    case FFT_Type::embed:
+        return "Embedded into 2D";
+
+    case FFT_Type::naive:
+        return "Naive DFT";
+    }
+    return "";
+}
+
 void copyComplex(NComplex *y, NComplex *x, indexT N)
 {
     memcpy(y, x, sizeof(NComplex) * N);
@@ -37,11 +56,36 @@ void sanityCheck(FFT_Type t1, FFT_Type t2, indexT N, int inv)
     delete[] x0;
 }
 
-void fft_test(NComplex *F, NComplex *x, indexT N, FFT_Type type, int nThreads, int inv)
+void Speedtest(FFT_Type type, indexT N, int rep, int nThreads)
 {
+    auto F = new NComplex[N];
+    auto x = new NComplex[N];
+
+    Generator g;
+    g.random(x, N);
+
+    double total = .0;
+    for (int r = 0; r < rep; ++ r) {
+        total += fft_test(F, x, N, type, nThreads);
+    }
+
+    printf("Method \'%s\' averages %.7f s on N = %lu with max %d cores (repeated %d times).\n", name(type), total / rep, N, nThreads, rep);
+
+    delete[] F;
+    delete[] x;
+}
+
+double fft_test(NComplex *F, NComplex *x, indexT N, FFT_Type type, int nThreads, int inv)
+{
+    // Test a fft function of _type_ using input _x_ and outputs into _F_
+    // Warning: this function possibly modifies _x_.
+    // returns running time
     if (nThreads > 0) {
         omp_set_num_threads(nThreads);
     }
+
+    Timer tm;
+    tm.tick();
    
     switch (type)
     {
@@ -66,6 +110,9 @@ void fft_test(NComplex *F, NComplex *x, indexT N, FFT_Type type, int nThreads, i
         puts("FFT Type error");
         break;
     }
+
+    tm.tock();
+    return tm.difftime();
 }
 
 void NMMSE(NComplex *y, NComplex *x, indexT N, double &max, double &mean)

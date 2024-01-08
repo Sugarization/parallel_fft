@@ -1,10 +1,12 @@
 #include "tests.h"
 
-const indexT N = 1 << 29;
-const T Fs = 64;
-
-int main()
+int main(int argc, char **argv)
 {
-    // fft_test();
+    int N = 1 << 10;
+    if (argc >= 2) {
+        sscanf(argv[1], "%d", &N);
+    }
+    
+    sanityCheck(FFT_Type::cooley, FFT_Type::embed, N, 1);
     return 0;
 }

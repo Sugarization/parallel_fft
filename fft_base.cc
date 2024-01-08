@@ -20,20 +20,21 @@ NComplex NComplex::operator - (const NComplex& x) const {
     a = _mm_sub_pd(a, b);
     return *(NComplex*)&a;
 }
-NComplex NComplex::operator * (const NComplex& x) const {
-    __m128d s, o, sr, si, oswap, zero;
-    s = _mm_load_pd(&re);
-    o = _mm_load_pd(&x.re);
-    sr = _mm_shuffle_pd(s, s, 0);                   // self: real, real
-    si = _mm_shuffle_pd(s, s, 3);                   // self: imag, imag
-    oswap = _mm_shuffle_pd(o, o, 1);                // other: imag, real
-    zero = _mm_set1_pd(0.0);
-    oswap = _mm_addsub_pd(zero, oswap); // other: -imag, real
-    o = _mm_mul_pd(o, sr);
-    oswap = _mm_mul_pd(oswap, si);
-    o = _mm_add_pd(o, oswap);
-    return *(NComplex*)&o;
-}
+// NComplex NComplex::operator * (const NComplex& x) const {
+//     __m128d s, o, sr, si, oswap, zero;
+//     s = _mm_load_pd(&re);
+//     o = _mm_load_pd(&x.re);
+//     sr = _mm_shuffle_pd(s, s, 0);                   // self: real, real
+//     si = _mm_shuffle_pd(s, s, 3);                   // self: imag, imag
+//     oswap = _mm_shuffle_pd(o, o, 1);                // other: imag, real
+//     zero = _mm_set1_pd(0.0);
+//     oswap = _mm_addsub_pd(zero, oswap); // other: -imag, real
+//     o = _mm_mul_pd(o, sr);
+//     oswap = _mm_mul_pd(oswap, si);
+//     o = _mm_add_pd(o, oswap);
+//     return *(NComplex*)&o;
+// }
+NComplex NComplex::operator * (const NComplex& x) const { return {re * x.re - im * x.im, re * x.im + im * x.re}; }
 NComplex NComplex::operator * (T k) const { return {re * k, im * k}; }
 NComplex NComplex::operator / (const NComplex& x) const { T nsq = normSq(); return {re / nsq, -im / nsq}; }
 T NComplex::normSq() const { return re * re + im * im; }

@@ -1,19 +1,18 @@
 #include "fft_base.h"
 #include "fft_parallel.h"
+#include "timer.h"
+
+#include <omp.h>
 #include <cstdlib>
-#include <ctime>
 #include <cstdio>
 
 const indexT N = 1 << 25;
 const T Fs = 64;
 
-double difftime(timespec &b, timespec &a) {
-    uint64_t diff = (b.tv_sec - a.tv_sec) * 1000000000ull + (b.tv_nsec - a.tv_nsec);
-    return diff / 1e9;
-}
 
 int main()
 {
+    omp_set_num_threads(16);
     NComplex *x = new NComplex[N];
     NComplex *F = new NComplex[N];
     
@@ -24,21 +23,19 @@ int main()
         x[i].re = i;
         x[i].im = 0;
     }
-    #ifndef NDEBUG
+    #ifndef FFT_CHECK
     NComplex *x1 = new NComplex[N];
     for (indexT i = 0; i < N; ++ i) {
         x1[i] = x[i];
         // printf("%.4f %.4f\n", x1[i].re, x1[i].im);
     }
     #endif
-    // naiveDFT(F, x, N);
-    timespec t0, t1;
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+    Timer timer("Direct Parallel");
+    timer.tick();
     directParallelFFT(F, x, N);
-    clock_gettime(CLOCK_MONOTONIC, &t1);
-    printf("Time elapsed: %.6f\n", difftime(t1, t0));
+    timer.tock();
 
-    #ifndef NDEBUG
+    #ifdef FFT_CHECK
     
     iterativeFFT(x1, N);
     for (indexT i = 0; i < N; ++ i) {
